@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+	http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+	http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+    <configuration-properties file="config.yaml"/>
+    <http:listener-config name="learn_acb-httpListenerConfig">
+        <http:listener-connection host="localhost" port="8081" />
+    </http:listener-config>
+    <salesforce:sfdc-config name="Salesforce_Config">
+        <salesforce:basic-connection username="john@mastek.com" password="T4teq@123" securityToken="2cDIQ6sPBC0dIynn9LeCAS8Dq" />
+    </salesforce:sfdc-config>
+    <apikit:config name="learn_acb-config" api="resource::d42f4de2-e867-450f-a460-e3b5e1cadb43:learn_acb:1.0.0:raml:zip:learn_acb.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="learn_acb-main">
+        <http:listener config-ref="learn_acb-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="learn_acb-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="learn_acb-console">
+        <http:listener config-ref="learn_acb-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="learn_acb-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="delete:\Employee\(EmpID):learn_acb-config">
+
+        <salesforce:query config-ref="Salesforce_Config" doc:name="Query" doc:id="ncdsvg" >
+            <salesforce:salesforce-query>select id from MSTEmployee__c where EmpID__c = ':ID' </salesforce:salesforce-query>
+            <salesforce:parameters>
+                #['ID':attributes.uriParams.EmpID]
+            </salesforce:parameters>
+        </salesforce:query>
+        <salesforce:delete config-ref="Salesforce_Config" doc:name="Delete" doc:id="coboex">
+            <salesforce:ids>
+                <![CDATA[#[payload.Id]]]>
+            </salesforce:ids>
+        </salesforce:delete>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"Record Deleted Successfully"]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+
+    </flow>
+    <flow name="patch:\Employee\(EmpID):application\json:learn_acb-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="UData">
+                <![CDATA[%dw 2.0
+output application/java 
+---
+{
+	FirstName: payload.FirstName default "Undefined",
+	LastName: payload.LastName default "Undefined",
+	EmpID: payload.EmpID default "Undefined",
+	Roll: payload.Roll default "Undefined"
+}]]>
+                </ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <salesforce:query config-ref="Salesforce_Config" doc:name="Query" doc:id="gaaezz" >
+          <salesforce:salesforce-query>select id,FirstName__c, LastName__c, EmpID__c, Roll__c from MSTEmployee__c  where EmpID__c = ':ID'</salesforce:salesforce-query>
+          <salesforce:parameters><![CDATA[#[output application/java
+        ---
+        {
+          "ID":attributes.uriParams.EmpID
+        }]]]></salesforce:parameters>
+        </salesforce:query>
+               <ee:transform doc:name="Transform Message" doc:id="rtpwun" >
+            <ee:message >
+                <ee:set-payload doc:name="Set payload" doc:id="tqubgf" >
+                <![CDATA[%dw 2.0
+                output application/java
+                ---
+                payload map(payload,payloadIn)->{
+                  Id: payload.Id,
+	                FirstName__c: if(vars.UData.FirstName == 'Undefined') payload.FirstName__c else vars.UData.FirstName,
+	                LastName__c: if(vars.UData.LastName == 'Undefined') payload.LastName__c else vars.UData.LastName,
+	                EmpID__c: if(vars.UData.EmpID == 'Undefined') payload.EmpID__c else vars.UData.EmpID,
+	                Roll__c: if(vars.UData.Roll == 'Undefined') payload.Roll__c else vars.UData.Roll
+                }
+              ]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger doc:name="Logger" doc:id="yrplax" message="#[vars.UData]"/>
+        <salesforce:update type="MSTEmployee__c" config-ref="Salesforce_Config" doc:name="Update" doc:id="vgbrxy" >
+        </salesforce:update>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload>
+                <![CDATA[%dw 2.0
+output application/json
+---
+"Record Updated Successfully"]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\Employee:learn_acb-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  info: [
+    {
+      ID: 1,
+      FirstName: "Koushik",
+      LastName: "Ramesh",
+      EmpID: 11531,
+      Roll: "developer"
+    }, 
+    {
+      ID: 2,
+      FirstName: "Raj",
+      LastName: "Ram",
+      EmpID: 11532,
+      Roll: "tester"
+    }
+  ]
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <salesforce:query config-ref="Salesforce_Config" doc:name="Query" doc:id="zebftb" >
+            <salesforce:salesforce-query>select FirstName__c, LastName__c, EmpID__c, Roll__c from MSTEmployee__c</salesforce:salesforce-query>
+        </salesforce:query>
+        <ee:transform doc:name="Transform Message" doc:id="dhitvj" >
+            <ee:message >
+                <ee:set-payload doc:name="Set payload" doc:id="uygjfq" >
+                <![CDATA[%dw 2.0
+                    output application/json
+                     ---
+                    payload map(item,index)->{
+                        "FirstName": item.FirstName__c,
+                        "LastName": item.LastName__c,
+                        "EmpID":item.EmpID__c,
+                        "Roll":item.Roll__c
+                    }
+                ]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger doc:name="Logger" doc:id="aefvwg" message="#[payload]"/>
+
+    </flow>
+    <flow name="get:\Employee\(EmpID):learn_acb-config">
+        <salesforce:query config-ref="Salesforce_Config" doc:name="Query" doc:id="jxwqwo" >
+          <salesforce:salesforce-query>select id,FirstName__c, LastName__c, EmpID__c, Roll__c from MSTEmployee__c  where EmpID__c = ':ID'</salesforce:salesforce-query>
+            <salesforce:parameters>
+                #['ID':attributes.uriParams.EmpID]
+            </salesforce:parameters>
+        </salesforce:query>
+        <ee:transform doc:name="Transform Message" doc:id="owphea" >
+            <ee:message >
+                <ee:set-payload doc:name="Set payload" doc:id="ilkjrp" ><![CDATA[%dw 2.0
+        output application/json
+        ---
+        payload map(payload,index)->{
+           "FirstName":payload.FirstName__c,
+           "LastName": payload.LastName__c,
+           "EmpID": payload.EmpID__c,
+           "Roll":payload.Roll__c
+        }
+        ]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+ 
+        <logger doc:name="Logger" doc:id="qysrgt" message="#[payload]"/>
+
+    </flow>
+    <flow name="post:\Employee:application\json:learn_acb-config">
+        <ee:transform doc:name="Transform Message" doc:id="eezvdh" >
+            <ee:message >
+                <ee:set-payload doc:name="Set payload" doc:id="shshcv" >
+              <![CDATA[%dw 2.0
+                output application/java
+                ---
+                [payload] map(item,index)->{
+                    "FirstName__c":item.'FirstName',
+                    "LastName__c":item.'LastName',
+                    "EmpID__c":item.'EmpID',
+                    "Roll__c":item.'Roll'
+                }
+              ]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <salesforce:create type="MSTEmployee__c" config-ref="Salesforce_Config" doc:name="Create" doc:id="ojgpfr" />
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"Record Created Successfully"]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+</mule>
